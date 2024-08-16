@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Lecture Management</title>
+</head>
+<body>
+<h1>Lecture Management</h1>
+
+<h2>Create a New Lecture</h2>
+<form id="lecture-form">
+    <label for="lectureType">Lecture Type:</label>
+    <select name="lectureType" id="lectureType">
+        <option value="MATHEMATICS">Mathematics</option>
+        <option value="COMPUTER_SCIENCE">Computer Science</option>
+        <option value="ARTIFICIAL_INTELLIGENCE">Artificial Intelligence</option>
+        <option value="BIOLOGY">Biology</option>
+        <option value="PSYCHOLOGY">Psychology</option>
+    </select>
+    <button type="button" onClick="createLecture()">Create Lecture</button>
+</form>
+
+<h2>Create a New Student</h2>
+<form id="student-form">
+    <label for="firstName">First Name:</label>
+    <input type="text" id="firstName" name="firstName">
+    <label for="lastName">Last Name:</label>
+    <input type="text" id="lastName" name="lastName">
+    <label for="age">Age:</label>
+    <input type="number" id="age" name="age">
+    <label for="dateOfBirth">Date of Birth:</label>
+    <input type="date" id="dateOfBirth" name="dateOfBirth">
+    <button type="button" onClick="createStudent()">Create Student</button>
+</form>
+
+<h2>Create a New Professor</h2>
+<form id="professor-form">
+    <label for="profFirstName">First Name:</label>
+    <input type="text" id="profFirstName" name="firstName">
+    <label for="profLastName">Last Name:</label>
+    <input type="text" id="profLastName" name="lastName">
+    <label for="profAge">Age:</label>
+    <input type="number" id="profAge" name="age">
+    <button type="button" onClick="createProfessor()">Create Professor</button>
+</form>
+
+<h3>Assign Student to Lecture</h3>
+<select id="student-dropdown">
+    <option value="">Select a student</option>
+</select>
+<select id="lecture-dropdown-student">
+    <option value="">Select a lecture</option>
+</select>
+<button onClick="assignStudentToLecture()">Assign Student to Lecture</button>
+
+<h3>Assign Professor to Lecture</h3>
+<select id="professor-dropdown">
+    <option value="">Select a professor</option>
+</select>
+<select id="lecture-dropdown-professor">
+    <option value="">Select a lecture</option>
+</select>
+<button onClick="assignProfessorToLecture()">Assign Professor to Lecture</button>
+
+<h2>Lectures Overview</h2>
+<div id="lectures-overview"></div>
+
+<script>
+    async function loadDropdowns() {
+        try {
+            const [studentsResponse, professorsResponse, lecturesResponse] = await Promise.all([
+                fetch('/api/student'),
+                fetch('/api/professor'),
+                fetch('/api/lecture')
+            ]);
+
+            const [students, professors, lectures] = await Promise.all([
+                studentsResponse.json(),
+                professorsResponse.json(),
+                lecturesResponse.json()
+            ]);
+
+            populateDropdown('student-dropdown', students, 'firstName', 'lastName');
+            populateDropdown('professor-dropdown', professors, 'firstName', 'lastName');
+            populateDropdown('lecture-dropdown-student', lectures, 'lectureType');
+            populateDropdown('lecture-dropdown-professor', lectures, 'lectureType');
+            displayLectures(lectures);
+        } catch (error) {
+            console.error('Failed to load dropdowns:', error);
+        }
+    }
+
+    function populateDropdown(elementId, items, ...fields) {
+        const dropdown = document.getElementById(elementId);
+        dropdown.innerHTML = ''; // Dropdown vor dem Befüllen leeren
+
+        items.forEach(item => {
+            const option = document.createElement('option');
+            option.value = item.id;
+            option.textContent = fields.map(field => item[field]).join(' ');
+            dropdown.appendChild(option);
+        });
+    }
+
+    function displayLectures(lectures) {
+        const lecturesContainer = document.getElementById('lectures-overview');
+        lecturesContainer.innerHTML = ''; // Container leeren
+
+        lectures.forEach(lecture => {
+            const lectureElement = document.createElement('div');
+            lectureElement.classList.add('lecture');
+
+            // Lecture header with type and professor
+            const lectureHeader = document.createElement('h3');
+            const professorName = lecture.professor
+                ? `Prof. ${lecture.professor.firstName} ${lecture.professor.lastName}`
+                : 'No Professor Assigned';
+            lectureHeader.textContent = `${lecture.lectureType} - ${professorName}`;
+            lectureElement.appendChild(lectureHeader);
+
+            // Student list
+            const studentList = document.createElement('ul');
+            if (lecture.students && lecture.students.length > 0) {
+                lecture.students.forEach(student => {
+                    const studentItem = document.createElement('li');
+                    studentItem.textContent = `${student.firstName} ${student.lastName}`;
+                    studentList.appendChild(studentItem);
+                });
+            } else {
+                const noStudents = document.createElement('li');
+                noStudents.textContent = 'No students enrolled';
+                studentList.appendChild(noStudents);
+            }
+
+            const line = document.createElement('hr')
+
+            lectureElement.appendChild(studentList);
+
+            lecturesContainer.appendChild(lectureElement);
+            lecturesContainer.appendChild(line)
+        });
+    }
+
+    async function createLecture() {
+        const lectureType = document.getElementById('lectureType').value;
+        const lectureData = {
+            lectureType: lectureType
+        };
+
+        try {
+            const response = await fetch('/api/lecture', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(lectureData)
+            });
+
+            if (response.ok) {
+                alert('Lecture successfully created');
+                loadDropdowns();
+            } else {
+                alert('Failed to create lecture');
+            }
+        } catch (error) {
+            console.error('Failed to create lecture:', error);
+        }
+    }
+
+    async function createStudent() {
+        const studentData = {
+            firstName: document.getElementById('firstName').value,
+            lastName: document.getElementById('lastName').value,
+            age: document.getElementById('age').value,
+            dateOfBirth: document.getElementById('dateOfBirth').value
+        };
+
+        try {
+            const response = await fetch('/api/student', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(studentData)
+            });
+
+            if (response.ok) {
+                alert('Student successfully created');
+                loadDropdowns();
+            } else {
+                alert('Failed to create student');
+            }
+        } catch (error) {
+            console.error('Failed to create student:', error);
+        }
+    }
+
+    async function createProfessor() {
+        const professorData = {
+            firstName: document.getElementById('profFirstName').value,
+            lastName: document.getElementById('profLastName').value,
+            age: document.getElementById('profAge').value
+        };
+
+        try {
+            const response = await fetch('/api/professor', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(professorData)
+            });
+
+            if (response.ok) {
+                alert('Professor successfully created');
+                loadDropdowns();
+            } else {
+                alert('Failed to create professor');
+            }
+        } catch (error) {
+            console.error('Failed to create professor:', error);
+        }
+    }
+
+    async function assignStudentToLecture() {
+        const studentId = document.getElementById('student-dropdown').value;
+        const lectureId = document.getElementById('lecture-dropdown-student').value;
+
+        if (studentId && lectureId) {
+            try {
+                const response = await fetch(`/api/student/${studentId}/assign/${lectureId}`, {
+                    method: 'PUT'
+                });
+
+                if (response.ok) {
+                    alert('Student successfully assigned to lecture');
+                    loadDropdowns();
+                } else {
+                    alert('Failed to assign student to lecture');
+                }
+            } catch (error) {
+                console.error('Failed to assign student to lecture:', error);
+                alert('Failed to assign student to lecture');
+            }
+        } else {
+            alert('Please select both a student and a lecture');
+        }
+    }
+
+    async function assignProfessorToLecture() {
+        const professorId = document.getElementById('professor-dropdown').value;
+        const lectureId = document.getElementById('lecture-dropdown-professor').value;
+
+        if (professorId && lectureId) {
+            try {
+                const response = await fetch(`/api/professor/${professorId}/assign/${lectureId}`, {
+                    method: 'PUT'
+                });
+
+                if (response.ok) {
+                    alert('Professor successfully assigned to lecture');
+                    loadDropdowns();
+                } else {
+                    alert('Failed to assign professor to lecture');
+                }
+            } catch (error) {
+                console.error('Failed to assign professor to lecture:', error);
+                alert('Failed to assign professor to lecture');
+            }
+        } else {
+            alert('Please select both a professor and a lecture');
+        }
+    }
+
+    loadDropdowns();
+</script>
+</body>
+</html>
